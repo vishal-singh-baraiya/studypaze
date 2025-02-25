@@ -31,7 +31,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { name: "Practice", url: "https://quizpractice.space" },
     { name: "IITM BS", url: "https://study.iitm.ac.in/ds" },
     { name: "Reddit", url: "https://www.reddit.com/r/IITM_BS_DataScience" },
-    { name: "Contribute", url: "https://github.com/TheVixhal/studypaze" },
+    { name: "Contribute", url: "https://github.com/vishal-singh-baraiya/studypaze" },
   ];
 
   return (
