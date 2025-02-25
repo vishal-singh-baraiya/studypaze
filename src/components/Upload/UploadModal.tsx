@@ -34,20 +34,18 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
 
   const handleClose = () => {
     resetForm();
-    setIsLoading(false); // Ensure loading state is reset when closing
+    setIsLoading(false);
     onClose();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate user is logged in
     if (!user) {
       setError("You must be logged in to upload a lecture");
       return;
     }
 
-    // Validate required fields
     if (!title || !videoUrl || !thumbnailUrl || !courseId) {
       setError("Please fill in all required fields");
       return;
@@ -57,35 +55,52 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
     setError(null);
 
     try {
-      const { data, error: uploadError } = await supabase
+      // First check if this video URL already exists
+      const { data: existingData, error: checkError } = await supabase
         .from('lectures')
-        .insert({
-          title,
-          description,
-          video_url: videoUrl,
-          thumbnail_url: thumbnailUrl,
-          instructor: user.full_name || user.email || 'Anonymous',
-          week_number: weekNumber,
-          course_id: courseId,
-        })
-        .select();
-
-      if (uploadError) {
-        throw new Error(uploadError.message || "Failed to upload lecture");
+        .select('id')
+        .eq('video_url', videoUrl)
+        .limit(1);
+      
+      if (checkError) {
+        throw new Error(checkError.message || "Error checking for existing lecture");
+      }
+      
+      if (existingData && existingData.length > 0) {
+        setError("This video URL has already been uploaded");
+        setIsLoading(false);
+        return;
       }
 
-      // Only fetch lectures if the upload was successful
-      if (data) {
-        await fetchLectures();
-        handleClose(); // Close modal only on success
-      } else {
-        throw new Error("No data returned from upload");
+      // Proceed with insert if no duplicate
+      const lectureData = {
+        title,
+        description,
+        video_url: videoUrl,
+        thumbnail_url: thumbnailUrl,
+        instructor: user.full_name || user.email || 'Anonymous',
+        week_number: weekNumber,
+        course_id: courseId,
+      };
+
+      // Insert without returning data first
+      const { error: insertError } = await supabase
+        .from('lectures')
+        .insert(lectureData);
+
+      if (insertError) {
+        throw new Error(insertError.message || "Failed to upload lecture");
       }
+
+      // Success flow
+      await fetchLectures();
+      handleClose();
+      
     } catch (err) {
       console.error("Error during upload:", err);
       setError((err as Error).message || "Failed to upload lecture");
     } finally {
-      setIsLoading(false); // Always reset loading state
+      setIsLoading(false);
     }
   };
 
@@ -99,7 +114,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
           onClick={handleClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 focus:outline-none"
           aria-label="Close"
-          disabled={isLoading} // Prevent closing during upload
+          disabled={isLoading}
         >
           <X className="w-5 h-5" />
         </button>
