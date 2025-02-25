@@ -18,29 +18,38 @@ export function VideoGrid() {
     fetchLectures
   } = useLectureStore();
 
-  // Use useCallback to prevent unnecessary re-renders
-  const handleFetchLectures = useCallback(async () => {
+  // Use useCallback to memoize the function
+  const refreshLectures = useCallback(async () => {
     try {
       await fetchLectures();
-    } catch (error) {
-      console.error("Failed to fetch lectures:", error);
+    } catch (err) {
+      console.error("Failed to fetch lectures:", err);
     }
   }, [fetchLectures]);
 
   useEffect(() => {
-    handleFetchLectures();
-  }, [handleFetchLectures]);
+    refreshLectures();
+    
+    // Set up a polling mechanism to refresh data periodically
+    // This helps ensure we always have the latest data
+    const intervalId = setInterval(() => {
+      refreshLectures();
+    }, 30000); // Refresh every 30 seconds
+    
+    return () => clearInterval(intervalId); // Clean up on unmount
+  }, [refreshLectures]);
 
-  // Handle modal state with proper cleanup
   const handleOpenUploadModal = () => {
     setIsUploadModalOpen(true);
   };
 
-  const handleCloseUploadModal = useCallback(() => {
+  const handleCloseUploadModal = () => {
     setIsUploadModalOpen(false);
-    // Refresh lectures after modal closes to ensure we have the latest data
-    handleFetchLectures();
-  }, [handleFetchLectures]);
+    // Force refresh lectures when modal closes
+    setTimeout(() => {
+      refreshLectures();
+    }, 500); // Small delay to ensure database has time to update
+  };
 
   const filteredLectures = lectures.filter(lecture => {
     // First apply week and course filters
@@ -109,6 +118,19 @@ export function VideoGrid() {
                   </button>
                 </div>
               )}
+                            {/* Refresh button */}
+              {!isLoading && (
+                <button
+                  onClick={refreshLectures}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+                  title="Refresh lectures"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span className="hidden md:inline">Refresh</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -130,7 +152,7 @@ export function VideoGrid() {
           <div className="text-center py-12">
             <p className="text-red-500">Error: {error}</p>
             <button 
-              onClick={handleFetchLectures}
+              onClick={refreshLectures}
               className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
             >
               Try Again
@@ -143,6 +165,12 @@ export function VideoGrid() {
                 `No lectures found matching "${searchQuery}"` : 
                 "No lectures found for the selected filters"}
             </p>
+            <button 
+              onClick={refreshLectures}
+              className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+            >
+              Refresh Data
+            </button>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
@@ -171,6 +199,10 @@ export function VideoGrid() {
                     {lecture.title}
                   </h3>
                   <p className="text-gray-400 text-sm mb-2">{lecture.instructor}</p>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>Week {lecture.week_number}</span>
+                    <span>{lecture.course_id}</span>
+                  </div>
                 </div>
               </div>
             ))}
@@ -178,6 +210,7 @@ export function VideoGrid() {
         )}
       </div>
 
+      {/* Upload Modal */}
       <UploadModal
         isOpen={isUploadModalOpen}
         onClose={handleCloseUploadModal}
