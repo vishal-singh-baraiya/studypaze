@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Play, Upload, Search } from 'lucide-react';
+import { Play, Upload, Search, RefreshCw } from 'lucide-react';
 import { useLectureStore } from '../../store/lectureStore';
 import { useAuthStore } from '../../store/authStore';
 import { UploadModal } from '../Upload/UploadModal';
@@ -7,6 +7,7 @@ import { UploadModal } from '../Upload/UploadModal';
 export function VideoGrid() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const { user } = useAuthStore();
   
   const {
@@ -18,26 +19,26 @@ export function VideoGrid() {
     fetchLectures
   } = useLectureStore();
 
-  // Use useCallback to memoize the function
+  // Memoize the refresh function to prevent unnecessary re-renders
   const refreshLectures = useCallback(async () => {
+    if (isRefreshing) return; // Prevent multiple simultaneous refreshes
+    
+    setIsRefreshing(true);
     try {
       await fetchLectures();
     } catch (err) {
       console.error("Failed to fetch lectures:", err);
+    } finally {
+      setIsRefreshing(false);
     }
-  }, [fetchLectures]);
+  }, [fetchLectures, isRefreshing]);
 
+  // Only fetch lectures once when component mounts
   useEffect(() => {
-    refreshLectures();
-    
-    // Set up a polling mechanism to refresh data periodically
-    // This helps ensure we always have the latest data
-    const intervalId = setInterval(() => {
+    if (lectures.length === 0 && !isLoading) {
       refreshLectures();
-    }, 30000); // Refresh every 30 seconds
-    
-    return () => clearInterval(intervalId); // Clean up on unmount
-  }, [refreshLectures]);
+    }
+  }, [lectures.length, isLoading, refreshLectures]);
 
   const handleOpenUploadModal = () => {
     setIsUploadModalOpen(true);
@@ -45,10 +46,8 @@ export function VideoGrid() {
 
   const handleCloseUploadModal = () => {
     setIsUploadModalOpen(false);
-    // Force refresh lectures when modal closes
-    setTimeout(() => {
-      refreshLectures();
-    }, 500); // Small delay to ensure database has time to update
+    // Only refresh if the modal was used for uploading
+    refreshLectures();
   };
 
   const filteredLectures = lectures.filter(lecture => {
@@ -107,8 +106,8 @@ export function VideoGrid() {
                 />
               </div>
               
-              {user && (
-                <div className="flex gap-2">
+              <div className="flex gap-2">
+                {user && (
                   <button
                     onClick={handleOpenUploadModal}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
@@ -116,21 +115,19 @@ export function VideoGrid() {
                     <Upload className="w-5 h-5" />
                     <span>Upload</span>
                   </button>
-                </div>
-              )}
-                            {/* Refresh button */}
-              {!isLoading && (
+                )}
+
+                {/* Manual refresh button */}
                 <button
                   onClick={refreshLectures}
-                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+                  disabled={isLoading || isRefreshing}
+                  className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   title="Refresh lectures"
                 >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
+                  <RefreshCw className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <span className="hidden md:inline">Refresh</span>
                 </button>
-              )}
+              </div>
             </div>
           </div>
         </div>
@@ -138,7 +135,7 @@ export function VideoGrid() {
 
       {/* Scrollable Content */}
       <div className="flex-1 overflow-auto p-6">
-        {isLoading ? (
+        {isLoading || isRefreshing ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="animate-pulse">
@@ -165,12 +162,14 @@ export function VideoGrid() {
                 `No lectures found matching "${searchQuery}"` : 
                 "No lectures found for the selected filters"}
             </p>
-            <button 
-              onClick={refreshLectures}
-              className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
-            >
-              Refresh Data
-            </button>
+            {lectures.length === 0 && (
+              <button 
+                onClick={refreshLectures}
+                className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+              >
+                Refresh Data
+              </button>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
