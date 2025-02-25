@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Play, Upload, Share2, Search } from 'lucide-react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { Play, Upload, Search } from 'lucide-react';
 import { useLectureStore } from '../../store/lectureStore';
 import { useAuthStore } from '../../store/authStore';
 import { UploadModal } from '../Upload/UploadModal';
@@ -18,9 +18,29 @@ export function VideoGrid() {
     fetchLectures
   } = useLectureStore();
 
-  useEffect(() => {
-    fetchLectures();
+  // Use useCallback to prevent unnecessary re-renders
+  const handleFetchLectures = useCallback(async () => {
+    try {
+      await fetchLectures();
+    } catch (error) {
+      console.error("Failed to fetch lectures:", error);
+    }
   }, [fetchLectures]);
+
+  useEffect(() => {
+    handleFetchLectures();
+  }, [handleFetchLectures]);
+
+  // Handle modal state with proper cleanup
+  const handleOpenUploadModal = () => {
+    setIsUploadModalOpen(true);
+  };
+
+  const handleCloseUploadModal = useCallback(() => {
+    setIsUploadModalOpen(false);
+    // Refresh lectures after modal closes to ensure we have the latest data
+    handleFetchLectures();
+  }, [handleFetchLectures]);
 
   const filteredLectures = lectures.filter(lecture => {
     // First apply week and course filters
@@ -81,7 +101,7 @@ export function VideoGrid() {
               {user && (
                 <div className="flex gap-2">
                   <button
-                    onClick={() => setIsUploadModalOpen(true)}
+                    onClick={handleOpenUploadModal}
                     className="flex items-center gap-2 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
                   >
                     <Upload className="w-5 h-5" />
@@ -107,8 +127,14 @@ export function VideoGrid() {
             ))}
           </div>
         ) : error ? (
-          <div className="text-center">
+          <div className="text-center py-12">
             <p className="text-red-500">Error: {error}</p>
+            <button 
+              onClick={handleFetchLectures}
+              className="mt-4 px-4 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg transition-colors duration-200"
+            >
+              Try Again
+            </button>
           </div>
         ) : filteredLectures.length === 0 ? (
           <div className="text-center py-12">
@@ -131,6 +157,10 @@ export function VideoGrid() {
                     src={lecture.thumbnail_url}
                     alt={lecture.title}
                     className="w-full aspect-video object-cover"
+                    onError={(e) => {
+                      // Fallback if image fails to load
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/640x360?text=No+Thumbnail';
+                    }}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-200">
                     <Play className="w-12 h-12 text-white" />
@@ -150,7 +180,7 @@ export function VideoGrid() {
 
       <UploadModal
         isOpen={isUploadModalOpen}
-        onClose={() => setIsUploadModalOpen(false)}
+        onClose={handleCloseUploadModal}
       />
     </div>
   );
