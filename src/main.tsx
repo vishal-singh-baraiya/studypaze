@@ -1,10 +1,15 @@
+/// main.tsx
+
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import MobileDetection from './MobileDetection.tsx';
 import './index.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <MobileDetection>
+      <App />
+    </MobileDetection>
   </StrictMode>
 );
