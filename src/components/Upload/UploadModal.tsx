@@ -32,6 +32,12 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
     setError(null);
   };
 
+  const handleClose = () => {
+    resetForm();
+    setIsLoading(false); // Ensure loading state is reset when closing
+    onClose();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -51,16 +57,6 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
     setError(null);
 
     try {
-      console.log("Starting upload with data:", {
-        title,
-        description,
-        video_url: videoUrl,
-        thumbnail_url: thumbnailUrl,
-        instructor: user.full_name || user.email || 'Anonymous',
-        week_number: weekNumber,
-        course_id: courseId,
-      });
-
       const { data, error: uploadError } = await supabase
         .from('lectures')
         .insert({
@@ -71,28 +67,25 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
           instructor: user.full_name || user.email || 'Anonymous',
           week_number: weekNumber,
           course_id: courseId,
-          // Default values for rating and views will be handled by the database
         })
         .select();
 
       if (uploadError) {
-        console.error("Supabase upload error:", uploadError);
-        throw new Error(uploadError.message);
+        throw new Error(uploadError.message || "Failed to upload lecture");
       }
 
-      console.log("Upload successful, response:", data);
-      
-      // Refresh the lecture list
-      await fetchLectures();
-      
-      // Reset form and close modal
-      resetForm();
-      onClose();
+      // Only fetch lectures if the upload was successful
+      if (data) {
+        await fetchLectures();
+        handleClose(); // Close modal only on success
+      } else {
+        throw new Error("No data returned from upload");
+      }
     } catch (err) {
       console.error("Error during upload:", err);
       setError((err as Error).message || "Failed to upload lecture");
     } finally {
-      setIsLoading(false);
+      setIsLoading(false); // Always reset loading state
     }
   };
 
@@ -103,12 +96,10 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-gray-900 p-6 rounded-lg w-full max-w-md relative border border-gray-800 shadow-xl">
         <button
-          onClick={() => {
-            resetForm(); // Reset form when closing
-            onClose();
-          }}
+          onClick={handleClose}
           className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 focus:outline-none"
           aria-label="Close"
+          disabled={isLoading} // Prevent closing during upload
         >
           <X className="w-5 h-5" />
         </button>
@@ -116,6 +107,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
         <h2 className="text-xl font-bold mb-4 text-gray-200">Upload New Lecture</h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Form fields remain the same */}
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
               Title *
@@ -126,6 +118,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isLoading}
               required
             />
           </div>
@@ -140,6 +133,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
               rows={3}
+              disabled={isLoading}
             />
           </div>
 
@@ -154,6 +148,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
               onChange={(e) => setVideoUrl(e.target.value)}
               placeholder="https://www.youtube.com/watch?v=example"
               className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isLoading}
               required
             />
           </div>
@@ -169,6 +164,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
               onChange={(e) => setThumbnailUrl(e.target.value)}
               placeholder="https://example.com/image.jpg"
               className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              disabled={isLoading}
               required
             />
           </div>
@@ -186,6 +182,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
                 value={weekNumber}
                 onChange={(e) => setWeekNumber(parseInt(e.target.value) || 1)}
                 className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isLoading}
                 required
               />
             </div>
@@ -201,6 +198,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
                 onChange={(e) => setCourseId(e.target.value)}
                 placeholder="foundation-1"
                 className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                disabled={isLoading}
                 required
               />
             </div>
@@ -215,10 +213,7 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
           <div className="flex gap-3 pt-2">
             <button
               type="button"
-              onClick={() => {
-                resetForm();
-                onClose();
-              }}
+              onClick={handleClose}
               className="flex-1 py-2 px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-600"
               disabled={isLoading}
             >
