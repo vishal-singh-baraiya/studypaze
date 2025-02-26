@@ -39,14 +39,11 @@ export const useLectureStore = create<LectureStore>((set) => ({
       const { data, error } = await supabase
         .from('lectures')
         .select('*')
-        .order('rating', { ascending: false });
-
+        .order('rating', { ascending: false }); // Keep if rating sort is desired
       if (error) throw error;
-      set({ lectures: data });
+      set({ lectures: data || [], isLoading: false });
     } catch (error) {
-      set({ error: (error as Error).message });
-    } finally {
-      set({ isLoading: false });
+      set({ error: (error as Error).message, isLoading: false });
     }
   },
 }));
