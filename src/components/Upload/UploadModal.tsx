@@ -8,7 +8,7 @@ interface UploadModalProps {
   onClose: (success: boolean) => void;
 }
 
-const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => {
+export const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -77,7 +77,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => {
       }
 
       resetForm();
-      onClose(true); // Signal success to parent
+      onClose(true);
     } catch (err: any) {
       console.error('Upload error:', err);
       setErrorMessage(err.message || 'An error occurred while uploading.');
@@ -252,5 +252,3 @@ const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => {
     </div>
   );
 };
-
-export default UploadModal;
