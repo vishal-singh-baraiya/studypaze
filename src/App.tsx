@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { LeftSidebar } from './components/Sidebar/LeftSidebar';
 import { RightSidebar } from './components/Sidebar/RightSidebar';
 import { Navbar } from './components/Navigation/Navbar';
-import { VideoGrid } from './components/Content/VideoGrid';
+import VideoGrid from './components/Content/VideoGrid';
 import { useAuthStore } from './store/authStore';
 
 function App() {
