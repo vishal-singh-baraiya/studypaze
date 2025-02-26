@@ -2,7 +2,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { Play, Upload, Search, RefreshCw } from 'lucide-react';
 import { useLectureStore } from '../../store/lectureStore';
 import { useAuthStore } from '../../store/authStore';
-import UploadModal from '../Upload/UploadModal';
+import { UploadModal } from '../Upload/UploadModal';
 
 export const VideoGrid: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
