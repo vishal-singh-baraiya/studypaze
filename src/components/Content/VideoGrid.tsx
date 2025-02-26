@@ -4,7 +4,7 @@ import { useLectureStore } from '../../store/lectureStore';
 import { useAuthStore } from '../../store/authStore';
 import UploadModal from '../Upload/UploadModal';
 
-const VideoGrid: React.FC = () => {
+export const VideoGrid: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -52,7 +52,6 @@ const VideoGrid: React.FC = () => {
 
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white">
-      {/* Header */}
       <header className="sticky top-0 bg-gray-800 p-4 border-b border-gray-700 z-10">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h1 className="text-2xl font-bold">
@@ -98,7 +97,6 @@ const VideoGrid: React.FC = () => {
         </div>
       </header>
 
-      {/* Content */}
       <main className="flex-1 p-6 overflow-auto">
         {(isLoading || isRefreshing) ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -158,5 +156,3 @@ const VideoGrid: React.FC = () => {
     </div>
   );
 };
-
-export default VideoGrid;
