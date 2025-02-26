@@ -1,258 +1,248 @@
-import React, { useState, useEffect } from 'react';
-import { X, Upload } from 'lucide-react';
+import React, { useState } from 'react';
+import { Upload, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../store/authStore';
 
 interface UploadModalProps {
   isOpen: boolean;
-  onClose: (shouldRefresh: boolean) => void;
+  onClose: (success: boolean) => void;
 }
 
-export function UploadModal({ isOpen, onClose }: UploadModalProps) {
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
-  const [thumbnailUrl, setThumbnailUrl] = useState('');
-  const [weekNumber, setWeekNumber] = useState(1);
-  const [courseId, setCourseId] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
-
+const UploadModal: React.FC<UploadModalProps> = ({ isOpen, onClose }) => {
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    videoUrl: '',
+    thumbnailUrl: '',
+    weekNumber: 1,
+    courseId: '',
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isFormDirty, setIsFormDirty] = useState(false);
   const { user } = useAuthStore();
 
-  // Track if form is dirty (has unsaved changes)
-  useEffect(() => {
-    const hasInput = title.trim() || videoUrl.trim() || thumbnailUrl.trim() || courseId.trim();
-    setIsDirty(hasInput);
-  }, [title, videoUrl, thumbnailUrl, courseId]);
-
-  const resetForm = () => {
-    setTitle('');
-    setDescription('');
-    setVideoUrl('');
-    setThumbnailUrl('');
-    setWeekNumber(1);
-    setCourseId('');
-    setError(null);
-    setIsDirty(false);
+  const handleInputChange = (field: keyof typeof formData, value: string | number) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    setIsFormDirty(true);
+    setErrorMessage(null);
   };
 
-  const handleClose = (shouldRefresh: boolean = false) => {
-    resetForm();
-    setIsLoading(false);
-    onClose(shouldRefresh);
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      videoUrl: '',
+      thumbnailUrl: '',
+      weekNumber: 1,
+      courseId: '',
+    });
+    setIsFormDirty(false);
+    setErrorMessage(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const { title, videoUrl, thumbnailUrl, courseId } = formData;
     if (!user) {
-      setError("You must be logged in to upload a lecture");
+      setErrorMessage('Please log in to upload a lecture.');
       return;
     }
-
     if (!title || !videoUrl || !thumbnailUrl || !courseId) {
-      setError("Please fill in all required fields");
+      setErrorMessage('Please fill in all required fields.');
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
+    setIsSubmitting(true);
+    setErrorMessage(null);
 
     try {
-      const lectureData = {
+      const lecture = {
         title,
-        description,
+        description: formData.description,
         video_url: videoUrl,
         thumbnail_url: thumbnailUrl,
         instructor: user.full_name || user.email || 'Anonymous',
-        week_number: weekNumber,
+        week_number: formData.weekNumber,
         course_id: courseId,
       };
 
-      const { error: insertError } = await supabase
-        .from('lectures')
-        .insert(lectureData);
-
-      if (insertError) {
-        if (insertError.code === '23505') {
-          throw new Error("A lecture with this video URL already exists");
+      const { error } = await supabase.from('lectures').insert(lecture);
+      if (error) {
+        if (error.code === '23505') {
+          throw new Error('This video URL is already in use.');
         }
-        throw new Error(insertError.message || "Failed to upload lecture");
+        throw new Error(error.message || 'Upload failed.');
       }
 
-      handleClose(true); // Close and signal refresh
+      resetForm();
+      onClose(true); // Signal success to parent
     } catch (err: any) {
-      console.error("Upload error:", err);
-      setError(err.message || "Failed to upload lecture");
+      console.error('Upload error:', err);
+      setErrorMessage(err.message || 'An error occurred while uploading.');
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
+  };
+
+  const handleClose = () => {
+    if (isFormDirty && !confirm('Discard changes?')) return;
+    resetForm();
+    onClose(false);
   };
 
   if (!isOpen) return null;
 
   return (
     <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      onClick={handleClose}
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      onClick={() => {
-        if (isDirty && !confirm("Are you sure you want to discard changes?")) return;
-        handleClose(false);
-      }}
     >
       <div
-        className="bg-gray-900 p-6 rounded-lg w-full max-w-md relative border border-gray-800 shadow-xl"
+        className="bg-gray-800 rounded-lg p-6 w-full max-w-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={() => {
-            if (isDirty && !confirm("Are you sure you want to discard changes?")) return;
-            handleClose(false);
-          }}
-          className="absolute top-4 right-4 text-gray-400 hover:text-gray-200 focus:outline-none"
-          aria-label="Close"
-          disabled={isLoading}
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <h2 className="text-xl font-bold mb-4 text-gray-200">Upload New Lecture</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-white">Upload Lecture</h2>
+          <button
+            onClick={handleClose}
+            className="text-gray-400 hover:text-white disabled:opacity-50"
+            disabled={isSubmitting}
+            aria-label="Close modal"
+          >
+            <X size={20} />
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
-              Title *
+            <label className="block text-sm text-gray-300 mb-1" htmlFor="title">
+              Title <span className="text-red-500">*</span>
             </label>
             <input
               id="title"
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              disabled={isLoading}
+              value={formData.title}
+              onChange={(e) => handleInputChange('title', e.target.value)}
+              className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+              disabled={isSubmitting}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-1">
+            <label className="block text-sm text-gray-300 mb-1" htmlFor="description">
               Description
             </label>
             <textarea
               id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+              className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
               rows={3}
-              disabled={isLoading}
+              disabled={isSubmitting}
             />
           </div>
 
           <div>
-            <label htmlFor="videoUrl" className="block text-sm font-medium text-gray-300 mb-1">
-              Video URL *
+            <label className="block text-sm text-gray-300 mb-1" htmlFor="videoUrl">
+              Video URL <span className="text-red-500">*</span>
             </label>
             <input
               id="videoUrl"
               type="url"
-              value={videoUrl}
-              onChange={(e) => setVideoUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=example"
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              disabled={isLoading}
+              value={formData.videoUrl}
+              onChange={(e) => handleInputChange('videoUrl', e.target.value)}
+              placeholder="https://youtube.com/watch?v=..."
+              className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+              disabled={isSubmitting}
               required
             />
           </div>
 
           <div>
-            <label htmlFor="thumbnailUrl" className="block text-sm font-medium text-gray-300 mb-1">
-              Thumbnail URL *
+            <label className="block text-sm text-gray-300 mb-1" htmlFor="thumbnailUrl">
+              Thumbnail URL <span className="text-red-500">*</span>
             </label>
             <input
               id="thumbnailUrl"
               type="url"
-              value={thumbnailUrl}
-              onChange={(e) => setThumbnailUrl(e.target.value)}
-              placeholder="https://example.com/image.jpg"
-              className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              disabled={isLoading}
+              value={formData.thumbnailUrl}
+              onChange={(e) => handleInputChange('thumbnailUrl', e.target.value)}
+              placeholder="https://example.com/thumbnail.jpg"
+              className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+              disabled={isSubmitting}
               required
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="weekNumber" className="block text-sm font-medium text-gray-300 mb-1">
-                Week Number *
+              <label className="block text-sm text-gray-300 mb-1" htmlFor="weekNumber">
+                Week <span className="text-red-500">*</span>
               </label>
               <input
                 id="weekNumber"
                 type="number"
-                min="1"
-                max="52"
-                value={weekNumber}
-                onChange={(e) => setWeekNumber(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                disabled={isLoading}
+                min={1}
+                max={52}
+                value={formData.weekNumber}
+                onChange={(e) => handleInputChange('weekNumber', parseInt(e.target.value) || 1)}
+                className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                disabled={isSubmitting}
                 required
               />
             </div>
-
             <div>
-              <label htmlFor="courseId" className="block text-sm font-medium text-gray-300 mb-1">
-                Course ID *
+              <label className="block text-sm text-gray-300 mb-1" htmlFor="courseId">
+                Course ID <span className="text-red-500">*</span>
               </label>
               <input
                 id="courseId"
                 type="text"
-                value={courseId}
-                onChange={(e) => setCourseId(e.target.value)}
-                placeholder="foundation-1"
-                className="w-full px-3 py-2 rounded-lg bg-gray-800 border border-gray-700 text-gray-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                disabled={isLoading}
+                value={formData.courseId}
+                onChange={(e) => handleInputChange('courseId', e.target.value)}
+                placeholder="e.g., CS101"
+                className="w-full p-2 bg-gray-700 text-white rounded border border-gray-600 focus:outline-none focus:border-blue-500"
+                disabled={isSubmitting}
                 required
               />
             </div>
           </div>
 
-          {error && (
-            <div className="bg-red-900/50 border border-red-800 text-red-200 px-3 py-2 rounded-md text-sm">
-              {error}
-            </div>
+          {errorMessage && (
+            <p className="text-red-400 text-sm bg-red-900/20 p-2 rounded">{errorMessage}</p>
           )}
 
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => {
-                if (isDirty && !confirm("Are you sure you want to discard changes?")) return;
-                handleClose(false);
-              }}
-              className="flex-1 py-2 px-4 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-gray-600"
-              disabled={isLoading}
+              onClick={handleClose}
+              className="flex-1 p-2 bg-gray-600 text-white rounded hover:bg-gray-500 disabled:opacity-50"
+              disabled={isSubmitting}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={isLoading}
-              className="flex-1 py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center gap-2"
+              className="flex-1 p-2 bg-blue-600 text-white rounded hover:bg-blue-500 disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={isSubmitting}
             >
-              {isLoading ? (
+              {isSubmitting ? (
                 <>
-                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
                   Uploading...
                 </>
               ) : (
                 <>
-                  <Upload className="w-4 h-4" />
-                  Upload Lecture
+                  <Upload size={20} />
+                  Upload
                 </>
               )}
             </button>
@@ -261,6 +251,6 @@ export function UploadModal({ isOpen, onClose }: UploadModalProps) {
       </div>
     </div>
   );
-}
+};
 
 export default UploadModal;
