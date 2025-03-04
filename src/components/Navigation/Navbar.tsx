@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, User, Menu, GraduationCap, Calendar, X, BookOpen, ExternalLink } from 'lucide-react';
+import { User, Menu, GraduationCap, Calendar, X } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { AuthModal } from '../Auth/AuthModal';
 
@@ -13,10 +13,8 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({
   toggleLeftSidebar,
   toggleRightSidebar,
-  leftSidebarOpen,
-  rightSidebarOpen
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { user, signOut } = useAuthStore();

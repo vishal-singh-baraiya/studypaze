@@ -22,10 +22,10 @@ interface LectureStore {
   error: string | null;
   setSelectedWeek: (week: number | null) => void;
   setSelectedCourse: (courseId: string | null) => void;
-  fetchLectures: () => Promise<void>;
+  fetchLectures: (page: number, limit: number) => Promise<Lecture[]>;
 }
 
-export const useLectureStore = create<LectureStore>((set) => ({
+export const useLectureStore = create<LectureStore>((set, get) => ({
   lectures: [],
   selectedWeek: null,
   selectedCourse: null,
@@ -33,17 +33,24 @@ export const useLectureStore = create<LectureStore>((set) => ({
   error: null,
   setSelectedWeek: (week) => set({ selectedWeek: week }),
   setSelectedCourse: (courseId) => set({ selectedCourse: courseId }),
-  fetchLectures: async () => {
+  fetchLectures: async (page: number, limit: number) => {
     set({ isLoading: true, error: null });
     try {
       const { data, error } = await supabase
         .from('lectures')
         .select('*')
-        .order('rating', { ascending: false }); // Keep if rating sort is desired
+        .order('rating', { ascending: false })
+        .range((page - 1) * limit, page * limit - 1);
+
       if (error) throw error;
-      set({ lectures: data || [], isLoading: false });
+      const lectures = data || [];
+      set({ lectures });
+      return lectures;
     } catch (error) {
-      set({ error: (error as Error).message, isLoading: false });
+      set({ error: (error as Error).message });
+      return [];
+    } finally {
+      set({ isLoading: false });
     }
   },
 }));
