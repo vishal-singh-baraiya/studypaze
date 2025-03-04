@@ -6,21 +6,19 @@ import { VideoGrid } from './components/Content/VideoGrid';
 import { useAuthStore } from './store/authStore';
 
 function App() {
-  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
-  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState<boolean>(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState<boolean>(true);
+  const [isMobile, setIsMobile] = useState<boolean>(false);
   const { initializeAuth } = useAuthStore();
   
-  // Navbar height in pixels - use this for consistent calculations
-  const NAVBAR_HEIGHT = 64;
+  const NAVBAR_HEIGHT: number = 64;
 
   useEffect(() => {
     initializeAuth();
   }, [initializeAuth]);
 
-  // Handle responsive behavior
   useEffect(() => {
-    const handleResize = () => {
+    const handleResize = (): void => {
       setIsMobile(window.innerWidth < 1024);
       if (window.innerWidth < 1024) {
         setLeftSidebarOpen(false);
@@ -31,22 +29,35 @@ function App() {
       }
     };
 
-    handleResize(); // Initial check
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Close sidebars when clicking outside on mobile
-  const handleMainClick = () => {
+  const handleMainClick = (): void => {
     if (isMobile && (leftSidebarOpen || rightSidebarOpen)) {
       setLeftSidebarOpen(false);
       setRightSidebarOpen(false);
     }
   };
 
+  // Mobile device message
+  if (isMobile) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-gray-950 text-gray-200">
+        <h1 className="text-2xl font-bold text-center px-4">
+          This website is not yet available for mobile devices.
+        </h1>
+        <p className="text-lg mt-4 text-center px-4">
+          Please use a PC or laptop to access this website.
+        </p>
+      </div>
+    );
+  }
+
+  // Original layout for non-mobile devices
   return (
     <div className="flex flex-col h-screen bg-gray-950 text-gray-200">
-      {/* Fixed Navbar */}
       <div className="fixed top-0 left-0 right-0 z-50" style={{ height: `${NAVBAR_HEIGHT}px` }}>
         <Navbar
           toggleLeftSidebar={() => setLeftSidebarOpen(!leftSidebarOpen)}
@@ -56,9 +67,7 @@ function App() {
         />
       </div>
 
-      {/* Content area with sidebars */}
       <div className="flex w-full" style={{ marginTop: `${NAVBAR_HEIGHT}px`, height: `calc(100vh - ${NAVBAR_HEIGHT}px)` }}>
-        {/* Overlay for mobile when sidebar is open */}
         {isMobile && (leftSidebarOpen || rightSidebarOpen) && (
           <div 
             className="fixed inset-0 bg-black bg-opacity-50 z-30"
@@ -67,7 +76,6 @@ function App() {
           />
         )}
 
-        {/* Left Sidebar */}
         <aside
           className={`fixed lg:static z-40 w-64 bg-gray-900 shadow-lg transition-transform duration-300 ease-in-out
             ${leftSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -82,7 +90,6 @@ function App() {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main 
           className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-900 to-gray-950 p-4"
           onClick={handleMainClick}
@@ -90,7 +97,6 @@ function App() {
           <VideoGrid />
         </main>
 
-        {/* Right Sidebar */}
         <aside
           className={`fixed lg:static right-0 z-40 w-64 bg-gray-900 shadow-lg transition-transform duration-300 ease-in-out
             ${rightSidebarOpen ? 'translate-x-0' : 'translate-x-full'}`}
